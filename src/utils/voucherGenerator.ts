@@ -8,394 +8,72 @@ interface GuestAssignment {
   bedType: string;
 }
 
+// Hotel brand colors for visual identity
+const hotelBrands: Record<string, { primary: string; secondary: string; accent: string }> = {
+  'jw-marriott-marquis': { primary: '#6B2D5B', secondary: '#B8860B', accent: '#1a1a1a' },
+  'atlantis-palm': { primary: '#003366', secondary: '#00A5E0', accent: '#FFD700' },
+  'creekside-accor': { primary: '#003366', secondary: '#7EB5DA', accent: '#00A859' },
+  'doubletree-m-square': { primary: '#002F6C', secondary: '#1E4D8C', accent: '#8B0000' },
+  'radisson-deira-creek': { primary: '#003DA5', secondary: '#FFD100', accent: '#CC0000' },
+  'westminster-dubai-mall': { primary: '#1B365D', secondary: '#C4A35A', accent: '#8B0000' },
+  'millennium-central': { primary: '#8B0000', secondary: '#D4AF37', accent: '#1a1a1a' },
+  'marriott-executive-creek': { primary: '#6B2D5B', secondary: '#B8860B', accent: '#1a1a1a' },
+  'tower-plaza': { primary: '#1C1C1C', secondary: '#C4A35A', accent: '#8B0000' },
+  'movenpick-creek': { primary: '#8B0000', secondary: '#D4AF37', accent: '#2F4F4F' },
+  'paramount-dubai': { primary: '#1a1a1a', secondary: '#C4A35A', accent: '#8B0000' },
+  'holiday-inn-express-airport': { primary: '#007B5F', secondary: '#FFC72C', accent: '#1a1a1a' },
+  'mercure-gold-al-mina': { primary: '#003366', secondary: '#7EB5DA', accent: '#00A859' },
+  'holiday-inn-express-safa': { primary: '#007B5F', secondary: '#FFC72C', accent: '#1a1a1a' },
+  'golden-sands-3': { primary: '#D4AF37', secondary: '#8B4513', accent: '#1a1a1a' },
+  'ibis-styles-deira': { primary: '#E30613', secondary: '#1a1a1a', accent: '#FFC72C' },
+  'atana-hotel': { primary: '#1B365D', secondary: '#C4A35A', accent: '#8B0000' },
+  'jannah-creek': { primary: '#006847', secondary: '#D4AF37', accent: '#1a1a1a' },
+  'courtyard-wtc': { primary: '#002F6C', secondary: '#1E4D8C', accent: '#8B0000' },
+  'four-points-sheikh-zayed': { primary: '#002F6C', secondary: '#1E4D8C', accent: '#8B0000' },
+  'emirates-palace': { primary: '#D4AF37', secondary: '#8B4513', accent: '#1a1a1a' },
+  'dusit-thani-ad': { primary: '#6B2D5B', secondary: '#D4AF37', accent: '#1a1a1a' },
+  'rixos-marina': { primary: '#8B0000', secondary: '#D4AF37', accent: '#1a1a1a' },
+  'khalidiya-palace': { primary: '#006847', secondary: '#D4AF37', accent: '#1a1a1a' },
+  'hilton-yas-island': { primary: '#002F6C', secondary: '#1E4D8C', accent: '#8B0000' },
+  'w-abu-dhabi': { primary: '#1a1a1a', secondary: '#FFFFFF', accent: '#8B0000' },
+  'royal-m-hotel': { primary: '#1B365D', secondary: '#C4A35A', accent: '#8B0000' },
+  'intercontinental-abu-dhabi': { primary: '#003366', secondary: '#7EB5DA', accent: '#00A859' },
+  'conrad-etihad': { primary: '#002F6C', secondary: '#1E4D8C', accent: '#8B0000' },
+  'grand-hyatt-ad': { primary: '#002F6C', secondary: '#1E4D8C', accent: '#D4AF37' },
+  'marriott-downtown-ad': { primary: '#6B2D5B', secondary: '#B8860B', accent: '#1a1a1a' },
+  'royal-rose': { primary: '#8B0000', secondary: '#D4AF37', accent: '#1a1a1a' },
+  'sofitel-corniche': { primary: '#1B365D', secondary: '#C4A35A', accent: '#8B0000' },
+  'st-regis-ad': { primary: '#1a1a1a', secondary: '#C4A35A', accent: '#8B0000' },
+  'four-seasons-al-maryah': { primary: '#1B365D', secondary: '#C4A35A', accent: '#8B0000' },
+};
+
+function getBrandColors(hotelId: string) {
+  return hotelBrands[hotelId] || { primary: '#1B365D', secondary: '#C4A35A', accent: '#8B0000' };
+}
+
 function generateBookingId(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let result = 'ZT-';
-  for (let i = 0; i < 8; i++) {
+  let result = '';
+  for (let i = 0; i < 10; i++) {
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return result;
 }
 
-function generateBarcodeData(): string {
-  let barcode = '';
-  for (let i = 0; i < 20; i++) {
-    barcode += Math.floor(Math.random() * 10).toString();
-  }
-  return barcode;
+function hexToRgb(hex: string): [number, number, number] {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result 
+    ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)]
+    : [0, 0, 0];
 }
 
-function drawBarcode(doc: jsPDF, x: number, y: number, data: string, width: number, height: number) {
-  // Draw a Code 128 style barcode
-  const barWidth = width / data.length;
-  for (let i = 0; i < data.length; i++) {
-    const digit = parseInt(data[i]);
-    if (digit % 2 === 0) {
-      doc.setFillColor(0, 0, 0);
-      doc.rect(x + i * barWidth, y, barWidth * 0.8, height, 'F');
-    }
+function formatDate(dateStr: string): string {
+  try {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  } catch {
+    return dateStr;
   }
-  // Add numbers below barcode
-  doc.setFontSize(6);
-  doc.setTextColor(0, 0, 0);
-  doc.text(data, x + width / 2, y + height + 3, { align: 'center' });
-}
-
-function drawStarRating(doc: jsPDF, x: number, y: number, stars: number) {
-  doc.setFontSize(10);
-  doc.setTextColor(255, 165, 0);
-  let starStr = '';
-  for (let i = 0; i < stars; i++) {
-    starStr += '★';
-  }
-  doc.text(starStr, x, y);
-}
-
-function drawConfirmedStamp(doc: jsPDF, x: number, y: number) {
-  // Draw circular stamp
-  doc.setDrawColor(34, 139, 34);
-  doc.setLineWidth(1.5);
-  doc.circle(x, y, 12);
-  doc.setFillColor(34, 139, 34, 0.1);
-  doc.circle(x, y, 12, 'F');
-  
-  doc.setFontSize(7);
-  doc.setTextColor(34, 139, 34);
-  doc.setFont('helvetica', 'bold');
-  doc.text('CONFIRMED', x, y - 1, { align: 'center' });
-  doc.setFontSize(5);
-  doc.text('VERIFIED', x, y + 3, { align: 'center' });
-}
-
-function drawLogo(doc: jsPDF, x: number, y: number) {
-  // Draw a professional travel agency logo
-  // Background circle
-  doc.setFillColor(220, 38, 38);
-  doc.circle(x + 8, y + 8, 8, 'F');
-  
-  // Inner design - airplane wing shape
-  doc.setFillColor(255, 165, 0);
-  doc.triangle(x + 4, y + 10, x + 12, y + 4, x + 12, y + 12, 'F');
-  
-  // Text
-  doc.setFontSize(11);
-  doc.setTextColor(220, 38, 38);
-  doc.setFont('helvetica', 'bold');
-  doc.text('ZAIN', x + 18, y + 7);
-  doc.setFontSize(7);
-  doc.setTextColor(100, 100, 100);
-  doc.setFont('helvetica', 'normal');
-  doc.text('TRAVEL & TOURISM', x + 18, y + 12);
-}
-
-export function generateVoucherPDF(
-  hotel: Hotel,
-  guests: string[],
-  checkInDate: string,
-  checkOutDate: string,
-  boardBasis: string
-): jsPDF {
-  const doc = new jsPDF('p', 'mm', 'a4');
-  const pageWidth = 210;
-  const margin = 15;
-  const contentWidth = pageWidth - margin * 2;
-  
-  // Assign guests to rooms (2 per room)
-  const assignments: GuestAssignment[] = [];
-  let roomNumber = 101;
-  
-  for (let i = 0; i < guests.length; i++) {
-    const roomType = hotel.roomTypes[Math.floor(Math.random() * hotel.roomTypes.length)];
-    const bedTypes = ['Twin Bed', 'Double Bed', 'King Bed'];
-    const bedType = bedTypes[Math.floor(Math.random() * bedTypes.length)];
-    
-    assignments.push({
-      name: guests[i].trim(),
-      roomNumber: roomNumber,
-      roomType: roomType,
-      bedType: bedType
-    });
-    
-    // Every 2 guests, increment room number
-    if ((i + 1) % 2 === 0) {
-      roomNumber++;
-    }
-  }
-
-  // ===== HEADER SECTION =====
-  // Top decorative bar
-  doc.setFillColor(15, 23, 42); // Deep navy
-  doc.rect(0, 0, pageWidth, 8, 'F');
-  
-  // Logo at top center
-  drawLogo(doc, pageWidth / 2 - 25, 12);
-  
-  // Title - Booking Voucher
-  doc.setFontSize(22);
-  doc.setTextColor(15, 23, 42);
-  doc.setFont('helvetica', 'bold');
-  doc.text('BOOKING VOUCHER', pageWidth / 2, 32, { align: 'center' });
-  
-  // Decorative line under title
-  doc.setDrawColor(220, 38, 38);
-  doc.setLineWidth(0.5);
-  doc.line(margin, 35, pageWidth - margin, 35);
-  
-  // Booking ID and timestamp
-  const bookingId = generateBookingId();
-  const timestamp = new Date().toLocaleString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-  
-  doc.setFontSize(8);
-  doc.setTextColor(100, 100, 100);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Booking ID: ${bookingId}`, pageWidth - margin, 14, { align: 'right' });
-  doc.text(`Issued: ${timestamp}`, pageWidth - margin, 18, { align: 'right' });
-  
-  // ===== HOTEL SECTION =====
-  let currentY = 42;
-  
-  // Hotel name
-  doc.setFontSize(16);
-  doc.setTextColor(15, 23, 42);
-  doc.setFont('helvetica', 'bold');
-  doc.text(hotel.name, pageWidth / 2, currentY, { align: 'center' });
-  
-  // Star rating
-  currentY += 6;
-  drawStarRating(doc, pageWidth / 2 - 15, currentY, hotel.starRating);
-  
-  // Hotel address
-  currentY += 5;
-  doc.setFontSize(8);
-  doc.setTextColor(100, 100, 100);
-  doc.setFont('helvetica', 'normal');
-  doc.text(hotel.address, pageWidth / 2, currentY, { align: 'center' });
-  
-  // Confirmed stamp
-  drawConfirmedStamp(doc, pageWidth - margin - 15, currentY - 3);
-  
-  // ===== BOOKING DETAILS SECTION =====
-  currentY += 12;
-  
-  // Section background
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(margin, currentY - 3, contentWidth, 30, 2, 2, 'F');
-  
-  // Check-in / Check-out
-  doc.setFontSize(9);
-  doc.setTextColor(15, 23, 42);
-  doc.setFont('helvetica', 'bold');
-  doc.text('CHECK-IN', margin + 5, currentY + 4);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(11);
-  doc.text(checkInDate, margin + 5, currentY + 10);
-  
-  // Divider
-  doc.setDrawColor(200, 200, 200);
-  doc.line(pageWidth / 2 - 20, currentY, pageWidth / 2 - 20, currentY + 22);
-  doc.line(pageWidth / 2 + 20, currentY, pageWidth / 2 + 20, currentY + 22);
-  
-  // Duration
-  doc.setFontSize(8);
-  doc.setTextColor(100, 100, 100);
-  doc.text('NIGHTS', pageWidth / 2 - 5, currentY + 4);
-  doc.setFontSize(14);
-  doc.setTextColor(220, 38, 38);
-  doc.setFont('helvetica', 'bold');
-  const nights = calculateNights(checkInDate, checkOutDate);
-  doc.text(nights.toString(), pageWidth / 2 - 2, currentY + 12);
-  
-  // Check-out
-  doc.setFontSize(9);
-  doc.setTextColor(15, 23, 42);
-  doc.setFont('helvetica', 'bold');
-  doc.text('CHECK-OUT', pageWidth / 2 + 25, currentY + 4);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(11);
-  doc.text(checkOutDate, pageWidth / 2 + 25, currentY + 10);
-  
-  // Board basis
-  doc.setFontSize(8);
-  doc.setTextColor(100, 100, 100);
-  doc.text(`Board: ${boardBasis}`, margin + 5, currentY + 22);
-  doc.text(`Guests: ${guests.length}`, pageWidth - margin - 5, currentY + 22, { align: 'right' });
-  
-  currentY += 35;
-  
-  // ===== GUEST LIST TABLE =====
-  // Table header
-  doc.setFillColor(15, 23, 42);
-  doc.rect(margin, currentY, contentWidth, 8, 'F');
-  
-  doc.setFontSize(8);
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.text('#', margin + 3, currentY + 5.5);
-  doc.text('GUEST NAME', margin + 15, currentY + 5.5);
-  doc.text('ROOM NO.', margin + 100, currentY + 5.5);
-  doc.text('ROOM TYPE', margin + 125, currentY + 5.5);
-  doc.text('BED', margin + 170, currentY + 5.5);
-  
-  currentY += 8;
-  
-  // Group guests by room
-  const roomGroups: { [key: number]: GuestAssignment[] } = {};
-  assignments.forEach(a => {
-    if (!roomGroups[a.roomNumber]) roomGroups[a.roomNumber] = [];
-    roomGroups[a.roomNumber].push(a);
-  });
-  
-  let guestIndex = 1;
-  const roomNumbers = Object.keys(roomGroups).map(Number).sort((a, b) => a - b);
-  
-  roomNumbers.forEach(roomNum => {
-    const roomGuests = roomGroups[roomNum];
-    
-    roomGuests.forEach((assignment, idx) => {
-      // Alternating row colors
-      if (guestIndex % 2 === 0) {
-        doc.setFillColor(248, 250, 252);
-        doc.rect(margin, currentY, contentWidth, 7, 'F');
-      }
-      
-      // Row border
-      doc.setDrawColor(230, 230, 230);
-      doc.line(margin, currentY + 7, margin + contentWidth, currentY + 7);
-      
-      doc.setFontSize(8);
-      doc.setTextColor(60, 60, 60);
-      doc.setFont('helvetica', 'normal');
-      doc.text(guestIndex.toString(), margin + 5, currentY + 5);
-      doc.setFont('helvetica', 'bold');
-      doc.text(assignment.name.substring(0, 45), margin + 15, currentY + 5);
-      doc.setFont('helvetica', 'normal');
-      
-      // Room number (only show for first guest in room)
-      if (idx === 0) {
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(220, 38, 38);
-        doc.text(roomNum.toString(), margin + 103, currentY + 5);
-        doc.setTextColor(60, 60, 60);
-        doc.setFont('helvetica', 'normal');
-        doc.text(assignment.roomType, margin + 125, currentY + 5);
-        doc.text(assignment.bedType, margin + 170, currentY + 5);
-      } else {
-        doc.text(assignment.roomType, margin + 125, currentY + 5);
-        doc.text(assignment.bedType, margin + 170, currentY + 5);
-      }
-      
-      currentY += 7;
-      guestIndex++;
-      
-      // Check if we need a new page
-      if (currentY > 260) {
-        doc.addPage();
-        currentY = 20;
-      }
-    });
-  });
-  
-  // ===== PAYMENT SECTION =====
-  currentY += 8;
-  if (currentY > 240) {
-    doc.addPage();
-    currentY = 20;
-  }
-  
-  doc.setFillColor(240, 253, 244);
-  doc.roundedRect(margin, currentY, contentWidth, 18, 2, 2, 'F');
-  doc.setDrawColor(34, 197, 94);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(margin, currentY, contentWidth, 18, 2, 2, 'S');
-  
-  doc.setFontSize(9);
-  doc.setTextColor(15, 23, 42);
-  doc.setFont('helvetica', 'bold');
-  doc.text('PAYMENT STATUS: PAID', margin + 5, currentY + 6);
-  
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(60, 60, 60);
-  doc.text(`Total Guests: ${guests.length}  |  Total Rooms: ${roomNumbers.length}  |  ${nights} Night(s)`, margin + 5, currentY + 12);
-  doc.text(`Amount: ${hotel.price} × ${roomNumbers.length} rooms`, pageWidth - margin - 5, currentY + 12, { align: 'right' });
-  
-  // ===== NON-REFUNDABLE BANNER =====
-  currentY += 24;
-  if (currentY > 250) {
-    doc.addPage();
-    currentY = 20;
-  }
-  
-  doc.setFillColor(220, 38, 38);
-  doc.roundedRect(margin, currentY, contentWidth, 8, 1, 1, 'F');
-  doc.setFontSize(9);
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.text('⚠ THIS BOOKING IS NON-REFUNDABLE', pageWidth / 2, currentY + 5.5, { align: 'center' });
-  
-  // ===== POLICY NOTES =====
-  currentY += 14;
-  if (currentY > 250) {
-    doc.addPage();
-    currentY = 20;
-  }
-  
-  doc.setFontSize(7);
-  doc.setTextColor(100, 100, 100);
-  doc.setFont('helvetica', 'normal');
-  const policies = [
-    '• Check-in time: 15:00 | Check-out time: 12:00',
-    '• All guests must present valid passport/ID at check-in',
-    '• Room allocation is subject to availability at time of check-in',
-    '• Any modifications or cancellations are not permitted for this booking',
-    '• Hotel reserves the right to charge security deposit at check-in'
-  ];
-  
-  policies.forEach(policy => {
-    doc.text(policy, margin + 2, currentY);
-    currentY += 4;
-  });
-  
-  // ===== BARCODE SECTION =====
-  currentY += 8;
-  if (currentY > 260) {
-    doc.addPage();
-    currentY = 20;
-  }
-  
-  const barcodeData = generateBarcodeData();
-  drawBarcode(doc, pageWidth / 2 - 30, currentY, barcodeData, 60, 15);
-  
-  // ===== SUPPORT CONTACT =====
-  currentY += 25;
-  if (currentY > 275) {
-    doc.addPage();
-    currentY = 20;
-  }
-  
-  doc.setFillColor(15, 23, 42);
-  doc.rect(0, currentY, pageWidth, 20, 'F');
-  
-  doc.setFontSize(8);
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.text('24/7 SUPPORT', pageWidth / 2, currentY + 5, { align: 'center' });
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
-  doc.text(`Phone: +971 4 XXX XXXX  |  Email: support@zaintravel.com  |  WhatsApp: +971 50 XXX XXXX`, pageWidth / 2, currentY + 10, { align: 'center' });
-  doc.text(`Zain Travel & Tourism LLC | Licensed by DTCM | License No: XXXXX`, pageWidth / 2, currentY + 15, { align: 'center' });
-  
-  // Bottom decorative bar
-  doc.setFillColor(220, 38, 38);
-  doc.rect(0, currentY + 18, pageWidth, 2, 'F');
-  
-  return doc;
 }
 
 function calculateNights(checkIn: string, checkOut: string): number {
@@ -409,14 +87,459 @@ function calculateNights(checkIn: string, checkOut: string): number {
   }
 }
 
-export function generateBulkVouchers(
+function drawHotelLogo(doc: jsPDF, hotel: Hotel, x: number, y: number) {
+  const colors = getBrandColors(hotel.id);
+  const [pr, pg, pb] = hexToRgb(colors.primary);
+  const [sr, sg, sb] = hexToRgb(colors.secondary);
+  
+  // Draw a sophisticated hotel emblem
+  // Outer circle
+  doc.setDrawColor(pr, pg, pb);
+  doc.setLineWidth(0.8);
+  doc.circle(x + 15, y + 15, 14);
+  
+  // Inner decorative elements
+  doc.setFillColor(pr, pg, pb);
+  doc.circle(x + 15, y + 15, 12, 'F');
+  
+  // Star or diamond in center
+  doc.setFillColor(sr, sg, sb);
+  doc.setFontSize(14);
+  doc.setTextColor(sr, sg, sb);
+  doc.text('★', x + 15, y + 19, { align: 'center' });
+  
+  // Hotel initials
+  const initials = hotel.name.split(' ').filter(w => w.length > 2).slice(0, 2).map(w => w[0]).join('');
+  doc.setFontSize(7);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.text(initials, x + 15, y + 13, { align: 'center' });
+}
+
+function drawBarcode(doc: jsPDF, x: number, y: number, data: string, width: number, height: number) {
+  const barWidth = width / (data.length * 2);
+  doc.setFillColor(0, 0, 0);
+  
+  for (let i = 0; i < data.length; i++) {
+    const digit = parseInt(data[i]);
+    const barH = height + (digit % 3);
+    doc.rect(x + i * barWidth * 2, y, barWidth * 0.8, barH, 'F');
+    if (digit > 5) {
+      doc.rect(x + i * barWidth * 2 + barWidth, y, barWidth * 0.4, barH * 0.7, 'F');
+    }
+  }
+  
+  doc.setFontSize(7);
+  doc.setTextColor(80, 80, 80);
+  doc.setFont('courier', 'normal');
+  doc.text(data, x + width / 2, y + height + 5, { align: 'center' });
+}
+
+export function generateVoucherPDF(
   hotel: Hotel,
   guests: string[],
   checkInDate: string,
   checkOutDate: string,
   boardBasis: string
-): void {
-  const doc = generateVoucherPDF(hotel, guests, checkInDate, checkOutDate, boardBasis);
-  const fileName = `${hotel.name.replace(/[^a-zA-Z0-9]/g, '_')}_Voucher_${Date.now()}.pdf`;
-  doc.save(fileName);
+): jsPDF {
+  const doc = new jsPDF('p', 'mm', 'a4');
+  const pageWidth = 210;
+  const margin = 18;
+  const contentWidth = pageWidth - margin * 2;
+  const colors = getBrandColors(hotel.id);
+  const [pr, pg, pb] = hexToRgb(colors.primary);
+  const [sr, sg, sb] = hexToRgb(colors.secondary);
+  const [ar, ag, ab] = hexToRgb(colors.accent);
+  
+  // Assign guests to rooms (2 per room)
+  const assignments: GuestAssignment[] = [];
+  let roomNumber = 101;
+  
+  for (let i = 0; i < guests.length; i++) {
+    const roomType = hotel.roomTypes[i % hotel.roomTypes.length];
+    const bedTypes = ['Twin Bed', 'Double Bed', 'King Bed', 'Queen Bed'];
+    const bedType = bedTypes[i % bedTypes.length];
+    
+    assignments.push({
+      name: guests[i].trim(),
+      roomNumber: roomNumber,
+      roomType: roomType,
+      bedType: bedType
+    });
+    
+    if ((i + 1) % 2 === 0) {
+      roomNumber++;
+    }
+  }
+
+  const bookingRef = generateBookingId();
+  const issueDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+  const nights = calculateNights(checkInDate, checkOutDate);
+  const roomCount = Math.ceil(guests.length / 2);
+
+  // ===== TOP ACCENT BAR =====
+  doc.setFillColor(pr, pg, pb);
+  doc.rect(0, 0, pageWidth, 4, 'F');
+  
+  // Secondary accent line
+  doc.setFillColor(sr, sg, sb);
+  doc.rect(0, 4, pageWidth, 1.5, 'F');
+
+  // ===== HEADER SECTION =====
+  let currentY = 14;
+  
+  // Hotel Logo
+  drawHotelLogo(doc, hotel, margin, currentY);
+  
+  // Hotel Name & Details
+  doc.setFontSize(20);
+  doc.setTextColor(pr, pg, pb);
+  doc.setFont('helvetica', 'bold');
+  doc.text(hotel.name.toUpperCase(), margin + 35, currentY + 8);
+  
+  // Star rating
+  doc.setFontSize(11);
+  doc.setTextColor(sr, sg, sb);
+  doc.text('★'.repeat(hotel.starRating) + '☆'.repeat(5 - hotel.starRating), margin + 35, currentY + 15);
+  
+  // Address
+  doc.setFontSize(8);
+  doc.setTextColor(100, 100, 100);
+  doc.setFont('helvetica', 'normal');
+  doc.text(hotel.address, margin + 35, currentY + 21);
+  
+  // Booking reference on right
+  doc.setFontSize(8);
+  doc.setTextColor(100, 100, 100);
+  doc.setFont('helvetica', 'normal');
+  doc.text('BOOKING REFERENCE', pageWidth - margin, currentY + 2, { align: 'right' });
+  doc.setFontSize(12);
+  doc.setTextColor(pr, pg, pb);
+  doc.setFont('courier', 'bold');
+  doc.text(bookingRef, pageWidth - margin, currentY + 8, { align: 'right' });
+  doc.setFontSize(7);
+  doc.setTextColor(100, 100, 100);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`ISSUED: ${issueDate}`, pageWidth - margin, currentY + 13, { align: 'right' });
+  doc.text(hotel.phone, pageWidth - margin, currentY + 18, { align: 'right' });
+
+  // ===== CONFIRMATION BADGE =====
+  currentY = 40;
+  const badgeX = pageWidth - margin - 22;
+  const badgeY = currentY - 5;
+  
+  // Green confirmation circle
+  doc.setDrawColor(34, 139, 34);
+  doc.setLineWidth(1.2);
+  doc.circle(badgeX, badgeY, 10);
+  doc.setFillColor(34, 139, 34);
+  doc.circle(badgeX, badgeY, 9, 'F');
+  doc.setFontSize(6);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.text('CONFIRMED', badgeX, badgeY - 1, { align: 'center' });
+  doc.setFontSize(5);
+  doc.text('GUARANTEED', badgeX, badgeY + 3, { align: 'center' });
+
+  // ===== DIVIDER =====
+  currentY = 44;
+  doc.setDrawColor(pr, pg, pb);
+  doc.setLineWidth(0.3);
+  doc.line(margin, currentY, pageWidth - margin, currentY);
+  doc.setDrawColor(sr, sg, sb);
+  doc.setLineWidth(0.15);
+  doc.line(margin, currentY + 1, pageWidth - margin, currentY + 1);
+
+  // ===== BOOKING VOUCHER TITLE =====
+  currentY += 8;
+  doc.setFontSize(14);
+  doc.setTextColor(pr, pg, pb);
+  doc.setFont('helvetica', 'bold');
+  doc.text('HOTEL BOOKING VOUCHER', pageWidth / 2, currentY, { align: 'center' });
+  doc.setFontSize(8);
+  doc.setTextColor(120, 120, 120);
+  doc.setFont('helvetica', 'normal');
+  doc.text('This document serves as confirmation of your hotel reservation', pageWidth / 2, currentY + 5, { align: 'center' });
+
+  // ===== DATES SECTION =====
+  currentY += 14;
+  
+  // Date box background
+  doc.setFillColor(248, 249, 252);
+  doc.roundedRect(margin, currentY, contentWidth, 22, 2, 2, 'F');
+  doc.setDrawColor(220, 220, 230);
+  doc.setLineWidth(0.2);
+  doc.roundedRect(margin, currentY, contentWidth, 22, 2, 2, 'S');
+  
+  // Check-in
+  const colWidth = contentWidth / 3;
+  doc.setFontSize(7);
+  doc.setTextColor(120, 120, 120);
+  doc.setFont('helvetica', 'normal');
+  doc.text('CHECK-IN', margin + colWidth / 2, currentY + 5, { align: 'center' });
+  doc.setFontSize(11);
+  doc.setTextColor(pr, pg, pb);
+  doc.setFont('helvetica', 'bold');
+  doc.text(formatDate(checkInDate), margin + colWidth / 2, currentY + 12, { align: 'center' });
+  doc.setFontSize(7);
+  doc.setTextColor(120, 120, 120);
+  doc.text('After 15:00', margin + colWidth / 2, currentY + 17, { align: 'center' });
+  
+  // Divider
+  doc.setDrawColor(200, 200, 210);
+  doc.line(margin + colWidth, currentY + 3, margin + colWidth, currentY + 19);
+  
+  // Nights
+  doc.setFontSize(7);
+  doc.setTextColor(120, 120, 120);
+  doc.setFont('helvetica', 'normal');
+  doc.text('DURATION', margin + colWidth + colWidth / 2, currentY + 5, { align: 'center' });
+  doc.setFontSize(16);
+  doc.setTextColor(ar, ag, ab);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`${nights}`, margin + colWidth + colWidth / 2 - 4, currentY + 14, { align: 'center' });
+  doc.setFontSize(8);
+  doc.setTextColor(120, 120, 120);
+  doc.text('NIGHTS', margin + colWidth + colWidth / 2 + 5, currentY + 14, { align: 'left' });
+  doc.setFontSize(7);
+  doc.text(`${boardBasis}`, margin + colWidth + colWidth / 2, currentY + 19, { align: 'center' });
+  
+  // Divider
+  doc.setDrawColor(200, 200, 210);
+  doc.line(margin + colWidth * 2, currentY + 3, margin + colWidth * 2, currentY + 19);
+  
+  // Check-out
+  doc.setFontSize(7);
+  doc.setTextColor(120, 120, 120);
+  doc.setFont('helvetica', 'normal');
+  doc.text('CHECK-OUT', margin + colWidth * 2 + colWidth / 2, currentY + 5, { align: 'center' });
+  doc.setFontSize(11);
+  doc.setTextColor(pr, pg, pb);
+  doc.setFont('helvetica', 'bold');
+  doc.text(formatDate(checkOutDate), margin + colWidth * 2 + colWidth / 2, currentY + 12, { align: 'center' });
+  doc.setFontSize(7);
+  doc.setTextColor(120, 120, 120);
+  doc.text('Before 12:00', margin + colWidth * 2 + colWidth / 2, currentY + 17, { align: 'center' });
+
+  // ===== GUEST & ROOM DETAILS =====
+  currentY += 28;
+  
+  // Section title
+  doc.setFontSize(9);
+  doc.setTextColor(pr, pg, pb);
+  doc.setFont('helvetica', 'bold');
+  doc.text('GUEST & ROOM ALLOCATION', margin, currentY);
+  doc.setFontSize(7);
+  doc.setTextColor(120, 120, 120);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`${guests.length} Guest(s) | ${roomCount} Room(s)`, pageWidth - margin, currentY, { align: 'right' });
+  
+  currentY += 4;
+  
+  // Table header
+  doc.setFillColor(pr, pg, pb);
+  doc.roundedRect(margin, currentY, contentWidth, 7, 1, 1, 'F');
+  
+  doc.setFontSize(7);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.text('S/N', margin + 4, currentY + 4.5);
+  doc.text('GUEST NAME', margin + 14, currentY + 4.5);
+  doc.text('ROOM', margin + 105, currentY + 4.5, { align: 'center' });
+  doc.text('ROOM TYPE', margin + 125, currentY + 4.5);
+  doc.text('BEDDING', margin + 168, currentY + 4.5);
+  
+  currentY += 7;
+  
+  // Group by room
+  const roomGroups: { [key: number]: GuestAssignment[] } = {};
+  assignments.forEach(a => {
+    if (!roomGroups[a.roomNumber]) roomGroups[a.roomNumber] = [];
+    roomGroups[a.roomNumber].push(a);
+  });
+  
+  let guestIndex = 1;
+  const roomNumbers = Object.keys(roomGroups).map(Number).sort((a, b) => a - b);
+  
+  roomNumbers.forEach((roomNum, rIdx) => {
+    const roomGuests = roomGroups[roomNum];
+    
+    // Room separator for first room
+    if (rIdx > 0) {
+      doc.setDrawColor(230, 230, 235);
+      doc.setLineWidth(0.1);
+      doc.line(margin + 2, currentY - 0.5, margin + contentWidth - 2, currentY - 0.5);
+    }
+    
+    roomGuests.forEach((assignment, idx) => {
+      // Row background
+      if (guestIndex % 2 === 0) {
+        doc.setFillColor(248, 249, 252);
+        doc.rect(margin, currentY, contentWidth, 7, 'F');
+      }
+      
+      doc.setFontSize(7.5);
+      doc.setTextColor(80, 80, 80);
+      doc.setFont('helvetica', 'normal');
+      doc.text(guestIndex.toString(), margin + 5, currentY + 4.5);
+      
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(40, 40, 40);
+      const displayName = assignment.name.length > 42 ? assignment.name.substring(0, 42) + '...' : assignment.name;
+      doc.text(displayName, margin + 14, currentY + 4.5);
+      
+      // Room number
+      if (idx === 0) {
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(pr, pg, pb);
+        doc.text(roomNum.toString(), margin + 105, currentY + 4.5, { align: 'center' });
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(80, 80, 80);
+        doc.text(assignment.roomType, margin + 125, currentY + 4.5);
+        doc.text(assignment.bedType, margin + 168, currentY + 4.5);
+      } else {
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(150, 150, 150);
+        doc.text('—', margin + 105, currentY + 4.5, { align: 'center' });
+        doc.setTextColor(80, 80, 80);
+        doc.text(assignment.roomType, margin + 125, currentY + 4.5);
+        doc.text(assignment.bedType, margin + 168, currentY + 4.5);
+      }
+      
+      currentY += 7;
+      guestIndex++;
+      
+      // Page break check
+      if (currentY > 255) {
+        doc.addPage();
+        currentY = 20;
+      }
+    });
+  });
+
+  // ===== SUMMARY BOX =====
+  currentY += 6;
+  if (currentY > 240) {
+    doc.addPage();
+    currentY = 20;
+  }
+  
+  doc.setFillColor(245, 247, 250);
+  doc.roundedRect(margin, currentY, contentWidth, 16, 2, 2, 'F');
+  doc.setDrawColor(220, 220, 230);
+  doc.setLineWidth(0.2);
+  doc.roundedRect(margin, currentY, contentWidth, 16, 2, 2, 'S');
+  
+  doc.setFontSize(8);
+  doc.setTextColor(pr, pg, pb);
+  doc.setFont('helvetica', 'bold');
+  doc.text('BOOKING SUMMARY', margin + 5, currentY + 5);
+  
+  doc.setFontSize(7);
+  doc.setTextColor(80, 80, 80);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Total Guests: ${guests.length}`, margin + 5, currentY + 10);
+  doc.text(`Total Rooms: ${roomCount}`, margin + 50, currentY + 10);
+  doc.text(`Duration: ${nights} Night(s)`, margin + 90, currentY + 10);
+  doc.text(`Board: ${boardBasis}`, margin + 130, currentY + 10);
+  
+  doc.setFontSize(7);
+  doc.setTextColor(100, 100, 100);
+  doc.text(`Rate: ${hotel.price}/night`, margin + 5, currentY + 14);
+  doc.text(`Room Range: ${roomNumbers[0]} - ${roomNumbers[roomNumbers.length - 1]}`, margin + 50, currentY + 14);
+  
+  // Payment status
+  doc.setFillColor(34, 139, 34);
+  doc.roundedRect(pageWidth - margin - 35, currentY + 3, 30, 10, 1, 1, 'F');
+  doc.setFontSize(7);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.text('PAID', pageWidth - margin - 20, currentY + 9, { align: 'center' });
+
+  // ===== NON-REFUNDABLE NOTICE =====
+  currentY += 22;
+  if (currentY > 255) {
+    doc.addPage();
+    currentY = 20;
+  }
+  
+  doc.setFillColor(ar, ag, ab);
+  doc.roundedRect(margin, currentY, contentWidth, 8, 1, 1, 'F');
+  doc.setFontSize(8);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.text('⚠  THIS BOOKING IS NON-REFUNDABLE AND NON-TRANSFERABLE', pageWidth / 2, currentY + 5, { align: 'center' });
+
+  // ===== IMPORTANT NOTES =====
+  currentY += 14;
+  if (currentY > 260) {
+    doc.addPage();
+    currentY = 20;
+  }
+  
+  doc.setFontSize(8);
+  doc.setTextColor(pr, pg, pb);
+  doc.setFont('helvetica', 'bold');
+  doc.text('IMPORTANT INFORMATION', margin, currentY);
+  
+  currentY += 5;
+  doc.setFontSize(7);
+  doc.setTextColor(80, 80, 80);
+  doc.setFont('helvetica', 'normal');
+  
+  const notes = [
+    '• Check-in time is 15:00. Early check-in is subject to availability.',
+    '• Check-out time is 12:00. Late check-out may incur additional charges.',
+    '• A valid passport or government-issued ID is required for all guests at check-in.',
+    '• Room type and bed preference are subject to availability at time of arrival.',
+    '• A security deposit may be required by the hotel at check-in.',
+    '• This voucher must be presented at the hotel reception upon arrival.',
+    '• For any amendments, please contact your travel agent directly.'
+  ];
+  
+  notes.forEach(note => {
+    doc.text(note, margin + 2, currentY);
+    currentY += 4;
+  });
+
+  // ===== BARCODE =====
+  currentY += 6;
+  if (currentY > 260) {
+    doc.addPage();
+    currentY = 20;
+  }
+  
+  const barcodeData = bookingRef + Date.now().toString().slice(-6);
+  drawBarcode(doc, pageWidth / 2 - 35, currentY, barcodeData, 70, 18);
+
+  // ===== BOTTOM FOOTER =====
+  currentY += 30;
+  if (currentY > 270) {
+    doc.addPage();
+    currentY = 20;
+  }
+  
+  // Footer bar
+  doc.setFillColor(pr, pg, pb);
+  doc.rect(0, currentY, pageWidth, 14, 'F');
+  
+  doc.setFontSize(7);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'normal');
+  doc.text(hotel.name, margin, currentY + 4);
+  doc.text(hotel.address.substring(0, 80), margin, currentY + 8);
+  doc.text(`Tel: ${hotel.phone}`, margin, currentY + 12);
+  
+  doc.text(`Ref: ${bookingRef}`, pageWidth - margin, currentY + 4, { align: 'right' });
+  doc.text('This is a computer-generated document', pageWidth - margin, currentY + 8, { align: 'right' });
+  doc.text('No signature required', pageWidth - margin, currentY + 12, { align: 'right' });
+  
+  // Bottom accent
+  doc.setFillColor(sr, sg, sb);
+  doc.rect(0, currentY + 14, pageWidth, 2, 'F');
+
+  return doc;
 }
