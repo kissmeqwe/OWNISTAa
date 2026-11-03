@@ -135,6 +135,73 @@ function drawBarcode(doc: jsPDF, x: number, y: number, data: string, width: numb
   doc.text(data, x + width / 2, y + height + 5, { align: 'center' });
 }
 
+function drawPartnersGrid(doc: jsPDF, x: number, y: number, width: number) {
+  const partners = [
+    'Jumeirah', 'Address Hotels', 'Armani Hotel', 'Burj Al Arab', 'One&Only',
+    'Atlantis The Palm', 'Kempinski', 'Raffles', 'St. Regis', 'Ritz-Carlton',
+    'Mandarin Oriental', 'Four Seasons', 'Waldorf Astoria', 'Park Hyatt', 'W Hotels',
+    'Anantara', 'Taj Hotels', 'Oberoi', 'Palazzo Versace', 'Bvlgari Hotel',
+    'Fairmont', 'Sofitel', 'Shangri-La', 'InterContinental', 'Marriott Luxury',
+    'Westin', 'Le Méridien', 'Radisson Collection', 'Dusit Thani', 'Rixos',
+    'Marriott Marquis', 'Hilton Luxury', 'Hyatt Regency', 'Rotana Premier', 'Minor Hotels'
+  ];
+
+  // Title
+  doc.setFontSize(9);
+  doc.setTextColor(44, 44, 44);
+  doc.setFont('helvetica', 'normal');
+  doc.text('PREMIER HOSPITALITY PARTNERS', x + width / 2, y, { align: 'center' });
+  
+  doc.setFontSize(6);
+  doc.setTextColor(119, 119, 119);
+  doc.text('A CURATED COLLECTION OF LUXURY BRANDS', x + width / 2, y + 4, { align: 'center' });
+
+  // Grid
+  const gridY = y + 8;
+  const cols = 5;
+  const cellWidth = width / cols;
+  const cellHeight = 8;
+  const rows = Math.ceil(partners.length / cols);
+
+  // Draw grid background
+  doc.setFillColor(248, 249, 250);
+  doc.rect(x, gridY, width, rows * cellHeight, 'F');
+  
+  // Draw grid borders
+  doc.setDrawColor(209, 213, 219);
+  doc.setLineWidth(0.2);
+  
+  // Vertical lines
+  for (let i = 0; i <= cols; i++) {
+    doc.line(x + i * cellWidth, gridY, x + i * cellWidth, gridY + rows * cellHeight);
+  }
+  
+  // Horizontal lines
+  for (let i = 0; i <= rows; i++) {
+    doc.line(x, gridY + i * cellHeight, x + width, gridY + i * cellHeight);
+  }
+
+  // Draw partner names
+  doc.setFontSize(5.5);
+  doc.setTextColor(75, 85, 99);
+  doc.setFont('helvetica', 'normal');
+  
+  partners.forEach((partner, index) => {
+    const row = Math.floor(index / cols);
+    const col = index % cols;
+    const cellX = x + col * cellWidth;
+    const cellY = gridY + row * cellHeight;
+    
+    // Truncate long names
+    let displayName = partner;
+    if (displayName.length > 18) {
+      displayName = displayName.substring(0, 17) + '…';
+    }
+    
+    doc.text(displayName.toUpperCase(), cellX + cellWidth / 2, cellY + cellHeight / 2 + 1, { align: 'center' });
+  });
+}
+
 export function generateVoucherPDF(
   hotel: Hotel,
   guests: string[],
@@ -514,6 +581,16 @@ export function generateVoucherPDF(
   
   const barcodeData = bookingRef + Date.now().toString().slice(-6);
   drawBarcode(doc, pageWidth / 2 - 35, currentY, barcodeData, 70, 18);
+
+  // ===== PREMIER HOSPITALITY PARTNERS =====
+  currentY += 30;
+  if (currentY > 230) {
+    doc.addPage();
+    currentY = 20;
+  }
+  
+  drawPartnersGrid(doc, margin, currentY, contentWidth);
+  currentY += 85;
 
   // ===== BOTTOM FOOTER =====
   currentY += 30;

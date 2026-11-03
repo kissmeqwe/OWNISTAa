@@ -601,6 +601,30 @@ function VoucherPreview({ hotel, guests, checkInDate, checkOutDate, boardBasis }
           {bookingRef}{Array.from({ length: 6 }).map(() => Math.floor(Math.random() * 10)).join('')}
         </p>
 
+        {/* Premier Hospitality Partners */}
+        <div className="mb-3">
+          <div className="text-center mb-2">
+            <h3 className="text-[10px] font-normal tracking-wider text-slate-700">PREMIER HOSPITALITY PARTNERS</h3>
+            <p className="text-[8px] tracking-wider text-slate-400">A CURATED COLLECTION OF LUXURY BRANDS</p>
+          </div>
+          <div className="grid grid-cols-5 gap-px bg-slate-300 border border-slate-300 rounded overflow-hidden">
+            {['Jumeirah', 'Address Hotels', 'Armani Hotel', 'Burj Al Arab', 'One&Only',
+              'Atlantis The Palm', 'Kempinski', 'Raffles', 'St. Regis', 'Ritz-Carlton',
+              'Mandarin Oriental', 'Four Seasons', 'Waldorf Astoria', 'Park Hyatt', 'W Hotels',
+              'Anantara', 'Taj Hotels', 'Oberoi', 'Palazzo Versace', 'Bvlgari Hotel',
+              'Fairmont', 'Sofitel', 'Shangri-La', 'InterContinental', 'Marriott Luxury',
+              'Westin', 'Le Méridien', 'Radisson Collection', 'Dusit Thani', 'Rixos',
+              'Marriott Marquis', 'Hilton Luxury', 'Hyatt Regency', 'Rotana Premier', 'Minor Hotels'
+            ].map((partner, idx) => (
+              <div key={idx} className="bg-white py-2 px-1 flex items-center justify-center min-h-[32px] hover:bg-slate-50 transition-colors">
+                <span className="text-[8px] font-medium tracking-wide text-slate-600 text-center uppercase leading-tight">
+                  {partner.length > 18 ? partner.substring(0, 17) + '…' : partner}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Footer */}
         <div className="rounded-lg p-2.5 text-center" style={{ backgroundColor: colors.primary }}>
           <p className="text-white text-[9px] font-semibold">{hotel.name}</p>
