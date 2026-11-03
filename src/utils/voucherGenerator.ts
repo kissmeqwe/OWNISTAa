@@ -1,6 +1,8 @@
 import { jsPDF } from 'jspdf';
 import { Hotel } from '../data/hotels';
 
+export type VoucherTemplate = 'classic' | 'luxury' | 'modern' | 'corporate';
+
 interface GuestAssignment {
   name: string;
   roomNumber: number;
@@ -87,12 +89,75 @@ function calculateNights(checkIn: string, checkOut: string): number {
   }
 }
 
+// Draw subtle watermark for CONFIRMED (using light color as opacity substitute)
+function drawConfirmedWatermark(doc: jsPDF, x: number, y: number, color: [number, number, number]) {
+  // Blend color with white to simulate low opacity
+  const lightColor: [number, number, number] = [
+    Math.min(255, color[0] + 200),
+    Math.min(255, color[1] + 200),
+    Math.min(255, color[2] + 200)
+  ];
+  
+  doc.setTextColor(lightColor[0], lightColor[1], lightColor[2]);
+  doc.setFontSize(36);
+  doc.setFont('helvetica', 'bold');
+  doc.text('CONFIRMED', x, y, { angle: -15 });
+  
+  doc.setFontSize(14);
+  doc.text('GUARANTEED', x + 5, y + 12, { angle: -15 });
+}
+
+// Draw subtle watermark for PAID
+function drawPaidWatermark(doc: jsPDF, x: number, y: number, color: [number, number, number]) {
+  const lightColor: [number, number, number] = [
+    Math.min(255, color[0] + 210),
+    Math.min(255, color[1] + 210),
+    Math.min(255, color[2] + 210)
+  ];
+  
+  doc.setTextColor(lightColor[0], lightColor[1], lightColor[2]);
+  doc.setFontSize(30);
+  doc.setFont('helvetica', 'bold');
+  doc.text('PAID', x, y, { angle: -12 });
+}
+
+// Draw prominent booking reference
+function drawBookingReference(doc: jsPDF, bookingRef: string, x: number, y: number, width: number, colors: { primary: [number, number, number]; secondary: [number, number, number] }) {
+  // Box background
+  doc.setFillColor(250, 250, 252);
+  doc.roundedRect(x, y, width, 18, 2, 2, 'F');
+  doc.setDrawColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(x, y, width, 18, 2, 2, 'S');
+  
+  // Label
+  doc.setFontSize(7);
+  doc.setTextColor(100, 100, 100);
+  doc.setFont('helvetica', 'normal');
+  doc.text('BOOKING REFERENCE', x + 5, y + 5);
+  
+  // Reference number
+  doc.setFontSize(14);
+  doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+  doc.setFont('courier', 'bold');
+  doc.text(bookingRef, x + 5, y + 13);
+  
+  // Date on right
+  doc.setFontSize(7);
+  doc.setTextColor(100, 100, 100);
+  doc.setFont('helvetica', 'normal');
+  const issueDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+  doc.text(`Issued: ${issueDate}`, x + width - 5, y + 5, { align: 'right' });
+  doc.text(`Ref #: ${bookingRef}`, x + width - 5, y + 13, { align: 'right' });
+}
+
 export function generateVoucherPDF(
   hotel: Hotel,
   guests: string[],
   checkInDate: string,
   checkOutDate: string,
-  boardBasis: string
+  boardBasis: string,
+  template: VoucherTemplate = 'classic'
 ): jsPDF {
   try {
     const doc = new jsPDF('p', 'mm', 'a4');
@@ -126,155 +191,241 @@ export function generateVoucherPDF(
     }
 
     const bookingRef = generateBookingId();
-    const issueDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
     const nights = calculateNights(checkInDate, checkOutDate);
     const roomCount = Math.ceil(guests.length / 2);
+    const roomNumbers = assignments.map(a => a.roomNumber).filter((v, i, a) => a.indexOf(v) === i).sort((a, b) => a - b);
 
-    // ===== TOP ACCENT BAR =====
-    doc.setFillColor(pr, pg, pb);
-    doc.rect(0, 0, pageWidth, 4, 'F');
+    // ===== TEMPLATE-SPECIFIC HEADER =====
+    let currentY = 10;
     
-    // Secondary accent line
-    doc.setFillColor(sr, sg, sb);
-    doc.rect(0, 4, pageWidth, 1.5, 'F');
+    if (template === 'classic') {
+      // Top accent bars
+      doc.setFillColor(pr, pg, pb);
+      doc.rect(0, 0, pageWidth, 4, 'F');
+      doc.setFillColor(sr, sg, sb);
+      doc.rect(0, 4, pageWidth, 1.5, 'F');
+      currentY = 14;
+    } else if (template === 'luxury') {
+      // Luxury: Gold border frame
+      doc.setDrawColor(sr, sg, sb);
+      doc.setLineWidth(0.8);
+      doc.rect(8, 8, pageWidth - 16, 289 - 16);
+      doc.setDrawColor(pr, pg, pb);
+      doc.setLineWidth(0.3);
+      doc.rect(10, 10, pageWidth - 20, 289 - 20);
+      currentY = 18;
+    } else if (template === 'modern') {
+      // Modern: Minimal top line
+      doc.setFillColor(pr, pg, pb);
+      doc.rect(margin, 10, contentWidth, 0.5, 'F');
+      currentY = 16;
+    } else if (template === 'corporate') {
+      // Corporate: Full width header block
+      doc.setFillColor(pr, pg, pb);
+      doc.rect(0, 0, pageWidth, 35, 'F');
+      currentY = 12;
+    }
 
-    // ===== HEADER SECTION =====
-    let currentY = 14;
-    
-    // Hotel Name & Details
-    doc.setFontSize(18);
-    doc.setTextColor(pr, pg, pb);
-    doc.setFont('helvetica', 'bold');
-    doc.text(hotel.name.toUpperCase(), margin, currentY + 8);
-    
-    // Star rating
-    doc.setFontSize(10);
-    doc.setTextColor(sr, sg, sb);
-    doc.text('★'.repeat(hotel.starRating) + '☆'.repeat(5 - hotel.starRating), margin, currentY + 15);
-    
-    // Address
-    doc.setFontSize(8);
-    doc.setTextColor(100, 100, 100);
-    doc.setFont('helvetica', 'normal');
-    doc.text(hotel.address, margin, currentY + 21);
-    
-    // Booking reference on right
-    doc.setFontSize(8);
-    doc.setTextColor(100, 100, 100);
-    doc.setFont('helvetica', 'normal');
-    doc.text('BOOKING REFERENCE', pageWidth - margin, currentY + 2, { align: 'right' });
-    doc.setFontSize(11);
-    doc.setTextColor(pr, pg, pb);
-    doc.setFont('courier', 'bold');
-    doc.text(bookingRef, pageWidth - margin, currentY + 8, { align: 'right' });
-    doc.setFontSize(7);
-    doc.setTextColor(100, 100, 100);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`ISSUED: ${issueDate}`, pageWidth - margin, currentY + 13, { align: 'right' });
-    doc.text(hotel.phone, pageWidth - margin, currentY + 18, { align: 'right' });
+    // ===== BOOKING REFERENCE (PROMINENT) =====
+    drawBookingReference(doc, bookingRef, margin, currentY, contentWidth, {
+      primary: [pr, pg, pb],
+      secondary: [sr, sg, sb]
+    });
+    currentY += 24;
 
-    // ===== CONFIRMATION BADGE =====
-    currentY = 40;
-    const badgeX = pageWidth - margin - 22;
-    const badgeY = currentY - 5;
-    
-    // Green confirmation circle
-    doc.setDrawColor(34, 139, 34);
-    doc.setLineWidth(1.2);
-    doc.circle(badgeX, badgeY, 10);
-    doc.setFillColor(34, 139, 34);
-    doc.circle(badgeX, badgeY, 9, 'F');
-    doc.setFontSize(6);
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.text('CONFIRMED', badgeX, badgeY - 1, { align: 'center' });
-    doc.setFontSize(5);
-    doc.text('GUARANTEED', badgeX, badgeY + 3, { align: 'center' });
+    // ===== HOTEL HEADER =====
+    if (template === 'classic') {
+      doc.setFontSize(18);
+      doc.setTextColor(pr, pg, pb);
+      doc.setFont('helvetica', 'bold');
+      doc.text(hotel.name.toUpperCase(), margin, currentY + 5);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(sr, sg, sb);
+      doc.text('★'.repeat(hotel.starRating) + '☆'.repeat(5 - hotel.starRating), margin, currentY + 12);
+      
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.setFont('helvetica', 'normal');
+      doc.text(hotel.address, margin, currentY + 18);
+      
+      doc.setFontSize(7);
+      doc.setTextColor(120, 120, 120);
+      doc.text(`Tel: ${hotel.phone}`, pageWidth - margin, currentY + 18, { align: 'right' });
+      currentY += 24;
+    } else if (template === 'luxury') {
+      // Centered elegant header
+      doc.setFontSize(9);
+      doc.setTextColor(sr, sg, sb);
+      doc.setFont('helvetica', 'normal');
+      doc.text('— ESTABLISHED EXCELLENCE —', pageWidth / 2, currentY, { align: 'center' });
+      
+      currentY += 6;
+      doc.setFontSize(20);
+      doc.setTextColor(pr, pg, pb);
+      doc.setFont('helvetica', 'bold');
+      doc.text(hotel.name.toUpperCase(), pageWidth / 2, currentY + 5, { align: 'center' });
+      
+      // Decorative line
+      doc.setDrawColor(sr, sg, sb);
+      doc.setLineWidth(0.3);
+      doc.line(pageWidth / 2 - 30, currentY + 8, pageWidth / 2 + 30, currentY + 8);
+      
+      currentY += 12;
+      doc.setFontSize(10);
+      doc.setTextColor(sr, sg, sb);
+      doc.text('★ '.repeat(hotel.starRating).trim(), pageWidth / 2, currentY, { align: 'center' });
+      
+      currentY += 5;
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.setFont('helvetica', 'normal');
+      doc.text(hotel.address, pageWidth / 2, currentY, { align: 'center' });
+      currentY += 10;
+    } else if (template === 'modern') {
+      doc.setFontSize(22);
+      doc.setTextColor(pr, pg, pb);
+      doc.setFont('helvetica', 'bold');
+      doc.text(hotel.name.toUpperCase(), margin, currentY + 5);
+      
+      doc.setFontSize(8);
+      doc.setTextColor(120, 120, 120);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`${hotel.starRating}-STAR  •  ${hotel.address}`, margin, currentY + 12);
+      currentY += 20;
+    } else if (template === 'corporate') {
+      // White text on dark header
+      doc.setFontSize(18);
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.text(hotel.name.toUpperCase(), margin, currentY + 5);
+      
+      doc.setFontSize(9);
+      doc.setTextColor(200, 200, 200);
+      doc.setFont('helvetica', 'normal');
+      doc.text('★'.repeat(hotel.starRating), margin, currentY + 12);
+      doc.text(hotel.address, margin, currentY + 18);
+      doc.text(`Tel: ${hotel.phone}`, pageWidth - margin, currentY + 18, { align: 'right' });
+      currentY = 42;
+    }
 
-    // ===== DIVIDER =====
-    currentY = 44;
-    doc.setDrawColor(pr, pg, pb);
-    doc.setLineWidth(0.3);
-    doc.line(margin, currentY, pageWidth - margin, currentY);
-    doc.setDrawColor(sr, sg, sb);
-    doc.setLineWidth(0.15);
-    doc.line(margin, currentY + 1, pageWidth - margin, currentY + 1);
+    // ===== SUBTLE CONFIRMED WATERMARK (Background) =====
+    drawConfirmedWatermark(doc, pageWidth / 2 - 20, currentY + 30, [pr, pg, pb]);
 
-    // ===== BOOKING VOUCHER TITLE =====
-    currentY += 8;
-    doc.setFontSize(14);
-    doc.setTextColor(pr, pg, pb);
-    doc.setFont('helvetica', 'bold');
-    doc.text('HOTEL BOOKING VOUCHER', pageWidth / 2, currentY, { align: 'center' });
-    doc.setFontSize(8);
-    doc.setTextColor(120, 120, 120);
-    doc.setFont('helvetica', 'normal');
-    doc.text('This document serves as confirmation of your hotel reservation', pageWidth / 2, currentY + 5, { align: 'center' });
+    // ===== TITLE =====
+    if (template === 'luxury') {
+      doc.setFontSize(11);
+      doc.setTextColor(pr, pg, pb);
+      doc.setFont('helvetica', 'normal');
+      doc.text('RESERVATION CONFIRMATION', pageWidth / 2, currentY, { align: 'center' });
+      doc.setFontSize(7);
+      doc.setTextColor(120, 120, 120);
+      doc.text('A confirmation of your exclusive stay', pageWidth / 2, currentY + 5, { align: 'center' });
+    } else {
+      doc.setFontSize(13);
+      doc.setTextColor(pr, pg, pb);
+      doc.setFont('helvetica', 'bold');
+      doc.text('HOTEL BOOKING VOUCHER', pageWidth / 2, currentY, { align: 'center' });
+      doc.setFontSize(8);
+      doc.setTextColor(120, 120, 120);
+      doc.setFont('helvetica', 'normal');
+      doc.text('This document serves as confirmation of your hotel reservation', pageWidth / 2, currentY + 5, { align: 'center' });
+    }
+    currentY += 14;
 
     // ===== DATES SECTION =====
-    currentY += 14;
-    
-    // Date box background
-    doc.setFillColor(248, 249, 252);
-    doc.roundedRect(margin, currentY, contentWidth, 22, 2, 2, 'F');
-    doc.setDrawColor(220, 220, 230);
-    doc.setLineWidth(0.2);
-    doc.roundedRect(margin, currentY, contentWidth, 22, 2, 2, 'S');
-    
-    // Check-in
     const colWidth = contentWidth / 3;
-    doc.setFontSize(7);
-    doc.setTextColor(120, 120, 120);
-    doc.setFont('helvetica', 'normal');
-    doc.text('CHECK-IN', margin + colWidth / 2, currentY + 5, { align: 'center' });
-    doc.setFontSize(11);
-    doc.setTextColor(pr, pg, pb);
-    doc.setFont('helvetica', 'bold');
-    doc.text(formatDate(checkInDate), margin + colWidth / 2, currentY + 12, { align: 'center' });
-    doc.setFontSize(7);
-    doc.setTextColor(120, 120, 120);
-    doc.text('After 15:00', margin + colWidth / 2, currentY + 17, { align: 'center' });
     
-    // Divider
-    doc.setDrawColor(200, 200, 210);
-    doc.line(margin + colWidth, currentY + 3, margin + colWidth, currentY + 19);
-    
-    // Nights
-    doc.setFontSize(7);
-    doc.setTextColor(120, 120, 120);
-    doc.setFont('helvetica', 'normal');
-    doc.text('DURATION', margin + colWidth + colWidth / 2, currentY + 5, { align: 'center' });
-    doc.setFontSize(16);
-    doc.setTextColor(ar, ag, ab);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`${nights}`, margin + colWidth + colWidth / 2 - 4, currentY + 14, { align: 'center' });
-    doc.setFontSize(8);
-    doc.setTextColor(120, 120, 120);
-    doc.text('NIGHTS', margin + colWidth + colWidth / 2 + 5, currentY + 14, { align: 'left' });
-    doc.setFontSize(7);
-    doc.text(`${boardBasis}`, margin + colWidth + colWidth / 2, currentY + 19, { align: 'center' });
-    
-    // Divider
-    doc.setDrawColor(200, 200, 210);
-    doc.line(margin + colWidth * 2, currentY + 3, margin + colWidth * 2, currentY + 19);
-    
-    // Check-out
-    doc.setFontSize(7);
-    doc.setTextColor(120, 120, 120);
-    doc.setFont('helvetica', 'normal');
-    doc.text('CHECK-OUT', margin + colWidth * 2 + colWidth / 2, currentY + 5, { align: 'center' });
-    doc.setFontSize(11);
-    doc.setTextColor(pr, pg, pb);
-    doc.setFont('helvetica', 'bold');
-    doc.text(formatDate(checkOutDate), margin + colWidth * 2 + colWidth / 2, currentY + 12, { align: 'center' });
-    doc.setFontSize(7);
-    doc.setTextColor(120, 120, 120);
-    doc.text('Before 12:00', margin + colWidth * 2 + colWidth / 2, currentY + 17, { align: 'center' });
-
-    // ===== GUEST & ROOM DETAILS =====
+    if (template === 'luxury') {
+      // Luxury: Elegant date display
+      doc.setDrawColor(sr, sg, sb);
+      doc.setLineWidth(0.2);
+      doc.line(margin, currentY, pageWidth - margin, currentY);
+      currentY += 5;
+      
+      doc.setFontSize(7);
+      doc.setTextColor(120, 120, 120);
+      doc.setFont('helvetica', 'normal');
+      doc.text('ARRIVAL', margin + colWidth / 2, currentY, { align: 'center' });
+      doc.setFontSize(10);
+      doc.setTextColor(pr, pg, pb);
+      doc.setFont('helvetica', 'bold');
+      doc.text(formatDate(checkInDate), margin + colWidth / 2, currentY + 6, { align: 'center' });
+      
+      doc.setFontSize(7);
+      doc.setTextColor(120, 120, 120);
+      doc.setFont('helvetica', 'normal');
+      doc.text('DURATION', margin + colWidth + colWidth / 2, currentY, { align: 'center' });
+      doc.setFontSize(14);
+      doc.setTextColor(ar, ag, ab);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${nights} NIGHTS`, margin + colWidth + colWidth / 2, currentY + 6, { align: 'center' });
+      
+      doc.setFontSize(7);
+      doc.setTextColor(120, 120, 120);
+      doc.setFont('helvetica', 'normal');
+      doc.text('DEPARTURE', margin + colWidth * 2 + colWidth / 2, currentY, { align: 'center' });
+      doc.setFontSize(10);
+      doc.setTextColor(pr, pg, pb);
+      doc.setFont('helvetica', 'bold');
+      doc.text(formatDate(checkOutDate), margin + colWidth * 2 + colWidth / 2, currentY + 6, { align: 'center' });
+      
+      currentY += 12;
+      doc.setDrawColor(sr, sg, sb);
+      doc.line(margin, currentY, pageWidth - margin, currentY);
+    } else {
+      // Standard date box
+      doc.setFillColor(248, 249, 252);
+      doc.roundedRect(margin, currentY, contentWidth, 22, 2, 2, 'F');
+      doc.setDrawColor(220, 220, 230);
+      doc.setLineWidth(0.2);
+      doc.roundedRect(margin, currentY, contentWidth, 22, 2, 2, 'S');
+      
+      doc.setFontSize(7);
+      doc.setTextColor(120, 120, 120);
+      doc.setFont('helvetica', 'normal');
+      doc.text('CHECK-IN', margin + colWidth / 2, currentY + 5, { align: 'center' });
+      doc.setFontSize(11);
+      doc.setTextColor(pr, pg, pb);
+      doc.setFont('helvetica', 'bold');
+      doc.text(formatDate(checkInDate), margin + colWidth / 2, currentY + 12, { align: 'center' });
+      doc.setFontSize(7);
+      doc.setTextColor(120, 120, 120);
+      doc.text('After 15:00', margin + colWidth / 2, currentY + 17, { align: 'center' });
+      
+      doc.setDrawColor(200, 200, 210);
+      doc.line(margin + colWidth, currentY + 3, margin + colWidth, currentY + 19);
+      
+      doc.setFontSize(7);
+      doc.setTextColor(120, 120, 120);
+      doc.text('DURATION', margin + colWidth + colWidth / 2, currentY + 5, { align: 'center' });
+      doc.setFontSize(16);
+      doc.setTextColor(ar, ag, ab);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${nights}`, margin + colWidth + colWidth / 2 - 4, currentY + 14, { align: 'center' });
+      doc.setFontSize(8);
+      doc.setTextColor(120, 120, 120);
+      doc.text('NIGHTS', margin + colWidth + colWidth / 2 + 5, currentY + 14);
+      doc.setFontSize(7);
+      doc.text(`${boardBasis}`, margin + colWidth + colWidth / 2, currentY + 19, { align: 'center' });
+      
+      doc.setDrawColor(200, 200, 210);
+      doc.line(margin + colWidth * 2, currentY + 3, margin + colWidth * 2, currentY + 19);
+      
+      doc.setFontSize(7);
+      doc.setTextColor(120, 120, 120);
+      doc.text('CHECK-OUT', margin + colWidth * 2 + colWidth / 2, currentY + 5, { align: 'center' });
+      doc.setFontSize(11);
+      doc.setTextColor(pr, pg, pb);
+      doc.setFont('helvetica', 'bold');
+      doc.text(formatDate(checkOutDate), margin + colWidth * 2 + colWidth / 2, currentY + 12, { align: 'center' });
+      doc.setFontSize(7);
+      doc.setTextColor(120, 120, 120);
+      doc.text('Before 12:00', margin + colWidth * 2 + colWidth / 2, currentY + 17, { align: 'center' });
+    }
     currentY += 28;
-    
-    // Section title
+
+    // ===== GUEST TABLE =====
     doc.setFontSize(9);
     doc.setTextColor(pr, pg, pb);
     doc.setFont('helvetica', 'bold');
@@ -283,7 +434,6 @@ export function generateVoucherPDF(
     doc.setTextColor(120, 120, 120);
     doc.setFont('helvetica', 'normal');
     doc.text(`${guests.length} Guest(s) | ${roomCount} Room(s)`, pageWidth - margin, currentY, { align: 'right' });
-    
     currentY += 4;
     
     // Table header
@@ -298,7 +448,6 @@ export function generateVoucherPDF(
     doc.text('ROOM', margin + 105, currentY + 4.5, { align: 'center' });
     doc.text('ROOM TYPE', margin + 125, currentY + 4.5);
     doc.text('BEDDING', margin + 168, currentY + 4.5);
-    
     currentY += 7;
     
     // Group by room
@@ -309,12 +458,11 @@ export function generateVoucherPDF(
     });
     
     let guestIndex = 1;
-    const roomNumbers = Object.keys(roomGroups).map(Number).sort((a, b) => a - b);
+    const sortedRoomNumbers = Object.keys(roomGroups).map(Number).sort((a, b) => a - b);
     
-    roomNumbers.forEach((roomNum, rIdx) => {
+    sortedRoomNumbers.forEach((roomNum, rIdx) => {
       const roomGuests = roomGroups[roomNum];
       
-      // Room separator for first room
       if (rIdx > 0) {
         doc.setDrawColor(230, 230, 235);
         doc.setLineWidth(0.1);
@@ -322,7 +470,6 @@ export function generateVoucherPDF(
       }
       
       roomGuests.forEach((assignment, idx) => {
-        // Row background
         if (guestIndex % 2 === 0) {
           doc.setFillColor(248, 249, 252);
           doc.rect(margin, currentY, contentWidth, 7, 'F');
@@ -338,7 +485,6 @@ export function generateVoucherPDF(
         const displayName = assignment.name.length > 42 ? assignment.name.substring(0, 42) + '...' : assignment.name;
         doc.text(displayName, margin + 14, currentY + 4.5);
         
-        // Room number
         if (idx === 0) {
           doc.setFontSize(8);
           doc.setFont('helvetica', 'bold');
@@ -362,7 +508,6 @@ export function generateVoucherPDF(
         currentY += 7;
         guestIndex++;
         
-        // Page break check
         if (currentY > 255) {
           doc.addPage();
           currentY = 20;
@@ -370,12 +515,15 @@ export function generateVoucherPDF(
       });
     });
 
-    // ===== SUMMARY BOX =====
+    // ===== SUMMARY BOX WITH PAID WATERMARK =====
     currentY += 6;
     if (currentY > 240) {
       doc.addPage();
       currentY = 20;
     }
+    
+    // PAID watermark
+    drawPaidWatermark(doc, pageWidth - margin - 40, currentY + 10, [34, 139, 34]);
     
     doc.setFillColor(245, 247, 250);
     doc.roundedRect(margin, currentY, contentWidth, 16, 2, 2, 'F');
@@ -401,13 +549,11 @@ export function generateVoucherPDF(
     doc.text(`Rate: ${hotel.price}/night`, margin + 5, currentY + 14);
     doc.text(`Room Range: ${roomNumbers[0]} - ${roomNumbers[roomNumbers.length - 1]}`, margin + 50, currentY + 14);
     
-    // Payment status
-    doc.setFillColor(34, 139, 34);
-    doc.roundedRect(pageWidth - margin - 35, currentY + 3, 30, 10, 1, 1, 'F');
+    // Subtle paid indicator (not a bold badge)
     doc.setFontSize(7);
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.text('PAID', pageWidth - margin - 20, currentY + 9, { align: 'center' });
+    doc.setTextColor(34, 139, 34);
+    doc.setFont('helvetica', 'italic');
+    doc.text('Payment Received', pageWidth - margin - 5, currentY + 14, { align: 'right' });
 
     // ===== NON-REFUNDABLE NOTICE =====
     currentY += 22;

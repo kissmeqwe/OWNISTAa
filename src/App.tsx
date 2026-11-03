@@ -1,6 +1,13 @@
 import { useState, useMemo, useCallback } from 'react';
 import { hotels, categories, getHotelsByCategory, Hotel } from './data/hotels';
-import { generateVoucherPDF } from './utils/voucherGenerator';
+import { generateVoucherPDF, VoucherTemplate } from './utils/voucherGenerator';
+
+const templates: { id: VoucherTemplate; name: string; description: string; icon: string }[] = [
+  { id: 'classic', name: 'Classic', description: 'Clean & Professional', icon: '📄' },
+  { id: 'luxury', name: 'Luxury', description: 'Elegant & Refined', icon: '✨' },
+  { id: 'modern', name: 'Modern', description: 'Minimal & Contemporary', icon: '◆' },
+  { id: 'corporate', name: 'Corporate', description: 'Bold & Structured', icon: '▣' },
+];
 
 // Hotel brand colors for preview
 const hotelBrands: Record<string, { primary: string; secondary: string; accent: string }> = {
@@ -54,6 +61,7 @@ function App() {
   const [boardBasis, setBoardBasis] = useState<string>('Room Only');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [successMessage, setSuccessMessage] = useState<string>('');
+  const [selectedTemplate, setSelectedTemplate] = useState<VoucherTemplate>('classic');
 
   const filteredHotels = useMemo(() => {
     return getHotelsByCategory(selectedCategory);
@@ -96,7 +104,7 @@ function App() {
           const end = Math.min(start + batchSize, parsedGuests.length);
           const batchGuests = parsedGuests.slice(start, end);
           
-          const doc = generateVoucherPDF(selectedHotel, batchGuests, checkInDate, checkOutDate, boardBasis);
+          const doc = generateVoucherPDF(selectedHotel, batchGuests, checkInDate, checkOutDate, boardBasis, selectedTemplate);
           const batchNum = currentBatch + 1;
           const fileName = `${selectedHotel.name.replace(/[^a-zA-Z0-9]/g, '_')}_Voucher_Part${batchNum}.pdf`;
           
@@ -134,7 +142,7 @@ function App() {
     }
 
     try {
-      const doc = generateVoucherPDF(selectedHotel, parsedGuests, checkInDate, checkOutDate, boardBasis);
+      const doc = generateVoucherPDF(selectedHotel, parsedGuests, checkInDate, checkOutDate, boardBasis, selectedTemplate);
       
       // Open PDF in new window for printing
       const pdfData = doc.output('bloburl');
@@ -263,11 +271,54 @@ function App() {
               </div>
             </div>
 
+            {/* Template Selection */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+              <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-md bg-slate-800 flex items-center justify-center">
+                    <span className="text-white text-[10px] font-bold">2</span>
+                  </div>
+                  <h2 className="text-sm font-semibold text-slate-700">Voucher Design Template</h2>
+                </div>
+                <span className="text-[10px] text-slate-400">Choose your style</span>
+              </div>
+              <div className="p-4">
+                <div className="grid grid-cols-2 gap-2">
+                  {templates.map((tpl) => (
+                    <button
+                      key={tpl.id}
+                      onClick={() => setSelectedTemplate(tpl.id)}
+                      className={`p-3 rounded-lg border-2 text-left transition-all ${
+                        selectedTemplate === tpl.id
+                          ? 'border-slate-800 bg-slate-50 shadow-sm'
+                          : 'border-slate-200 hover:border-slate-300 bg-white'
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <span className="text-lg">{tpl.icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-xs font-semibold ${selectedTemplate === tpl.id ? 'text-slate-800' : 'text-slate-600'}`}>
+                            {tpl.name}
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">{tpl.description}</p>
+                        </div>
+                        {selectedTemplate === tpl.id && (
+                          <svg className="w-4 h-4 text-slate-800 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                          </svg>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             {/* Dates & Board */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
               <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
                 <div className="w-6 h-6 rounded-md bg-slate-800 flex items-center justify-center">
-                  <span className="text-white text-[10px] font-bold">2</span>
+                  <span className="text-white text-[10px] font-bold">3</span>
                 </div>
                 <h2 className="text-sm font-semibold text-slate-700">Stay Details</h2>
               </div>
@@ -316,7 +367,7 @@ function App() {
               <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 rounded-md bg-slate-800 flex items-center justify-center">
-                    <span className="text-white text-[10px] font-bold">3</span>
+                    <span className="text-white text-[10px] font-bold">4</span>
                   </div>
                   <h2 className="text-sm font-semibold text-slate-700">Guest Names</h2>
                 </div>
@@ -436,6 +487,7 @@ function App() {
                     checkInDate={checkInDate}
                     checkOutDate={checkOutDate}
                     boardBasis={boardBasis}
+                    template={selectedTemplate}
                   />
                 )}
               </div>
@@ -448,12 +500,13 @@ function App() {
 }
 
 // Voucher Preview Component
-function VoucherPreview({ hotel, guests, checkInDate, checkOutDate, boardBasis }: {
+function VoucherPreview({ hotel, guests, checkInDate, checkOutDate, boardBasis, template }: {
   hotel: Hotel;
   guests: string[];
   checkInDate: string;
   checkOutDate: string;
   boardBasis: string;
+  template: VoucherTemplate;
 }) {
   const colors = getBrandColors(hotel.id);
   const roomCount = Math.ceil(guests.length / 2);
@@ -490,52 +543,113 @@ function VoucherPreview({ hotel, guests, checkInDate, checkOutDate, boardBasis }
   const bookingRef = 'BK' + Math.random().toString(36).substr(2, 8).toUpperCase();
   const initials = hotel.name.split(' ').filter(w => w.length > 2).slice(0, 2).map(w => w[0]).join('');
 
+  // Template-specific wrapper styles
+  const wrapperStyles: Record<VoucherTemplate, React.CSSProperties> = {
+    classic: { border: '1px solid #e2e8f0', borderRadius: '8px' },
+    luxury: { border: `2px solid ${colors.secondary}`, borderRadius: '0px', boxShadow: `inset 0 0 0 2px white, inset 0 0 0 3px ${colors.primary}` },
+    modern: { border: 'none', borderRadius: '0px', borderBottom: `2px solid ${colors.primary}` },
+    corporate: { border: 'none', borderRadius: '0px' },
+  };
+
   return (
-    <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
-      {/* Top accent bars */}
-      <div className="h-1" style={{ backgroundColor: colors.primary }}></div>
-      <div className="h-0.5" style={{ backgroundColor: colors.secondary }}></div>
+    <div className="overflow-hidden bg-white" style={wrapperStyles[template]}>
+      {/* Template-specific top accent */}
+      {template === 'classic' && (
+        <>
+          <div className="h-1" style={{ backgroundColor: colors.primary }}></div>
+          <div className="h-0.5" style={{ backgroundColor: colors.secondary }}></div>
+        </>
+      )}
+      {template === 'corporate' && (
+        <div className="px-5 py-3" style={{ backgroundColor: colors.primary }}>
+          <p className="text-white text-sm font-bold">{hotel.name.toUpperCase()}</p>
+          <p className="text-white/70 text-[9px]">{'★'.repeat(hotel.starRating)} • {hotel.address.substring(0, 60)}</p>
+        </div>
+      )}
       
-      <div className="p-5">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-start gap-3">
-            {/* Hotel Logo Circle */}
-            <div 
-              className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 border-2"
-              style={{ backgroundColor: colors.primary, borderColor: colors.secondary }}
-            >
-              <div className="text-center">
-                <p className="text-white text-[8px] font-bold leading-none">{initials}</p>
-                <p className="text-[10px]" style={{ color: colors.secondary }}>★</p>
-              </div>
-            </div>
+      <div className="p-5 relative">
+        {/* Subtle CONFIRMED watermark */}
+        <div 
+          className="absolute pointer-events-none select-none"
+          style={{ 
+            top: '40%', 
+            left: '50%', 
+            transform: 'translate(-50%, -50%) rotate(-15deg)',
+            color: colors.primary,
+            opacity: 0.06,
+            fontSize: '48px',
+            fontWeight: 'bold',
+            letterSpacing: '4px',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          CONFIRMED
+        </div>
+        
+        {/* Subtle PAID watermark */}
+        <div 
+          className="absolute pointer-events-none select-none"
+          style={{ 
+            bottom: '25%', 
+            right: '10%', 
+            transform: 'rotate(-12deg)',
+            color: '#228B22',
+            opacity: 0.06,
+            fontSize: '36px',
+            fontWeight: 'bold',
+            letterSpacing: '3px',
+          }}
+        >
+          PAID
+        </div>
+
+        {/* PROMINENT Booking Reference Box */}
+        <div 
+          className="mb-4 rounded-lg p-3 border relative z-10"
+          style={{ 
+            backgroundColor: '#fafafc', 
+            borderColor: colors.primary,
+            borderWidth: '1px'
+          }}
+        >
+          <div className="flex items-start justify-between">
             <div>
-              <h3 className="font-bold text-sm leading-tight" style={{ color: colors.primary }}>
-                {hotel.name.toUpperCase()}
-              </h3>
-              <div className="text-xs mt-0.5" style={{ color: colors.secondary }}>
-                {'★'.repeat(hotel.starRating)}{'☆'.repeat(5 - hotel.starRating)}
-              </div>
-              <p className="text-[10px] text-slate-500 mt-0.5 leading-snug">{hotel.address}</p>
+              <p className="text-[9px] text-slate-500 uppercase tracking-wider font-medium">Booking Reference</p>
+              <p className="text-lg font-mono font-bold tracking-wider" style={{ color: colors.primary }}>{bookingRef}</p>
             </div>
-          </div>
-          <div className="text-right shrink-0">
-            <p className="text-[9px] text-slate-400 uppercase tracking-wider">Booking Ref</p>
-            <p className="text-xs font-mono font-bold" style={{ color: colors.primary }}>{bookingRef}</p>
-            <p className="text-[9px] text-slate-400 mt-1">{new Date().toLocaleDateString('en-GB')}</p>
+            <div className="text-right">
+              <p className="text-[9px] text-slate-400">Issued: {new Date().toLocaleDateString('en-GB')}</p>
+              <p className="text-[9px] text-slate-400">Ref #: {bookingRef}</p>
+            </div>
           </div>
         </div>
 
-        {/* Confirmed Badge */}
-        <div className="flex justify-end -mt-14 mr-2 mb-2">
-          <div className="w-12 h-12 rounded-full border-2 border-emerald-600 bg-emerald-600 flex items-center justify-center">
-            <div className="text-center">
-              <p className="text-white text-[6px] font-bold leading-none">CONFIRMED</p>
-              <p className="text-emerald-200 text-[5px]">GUARANTEED</p>
+        {/* Header */}
+        {template !== 'corporate' && (
+          <div className="flex items-start justify-between mb-4 relative z-10">
+            <div className="flex items-start gap-3">
+              {/* Hotel Logo Circle */}
+              <div 
+                className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 border-2"
+                style={{ backgroundColor: colors.primary, borderColor: colors.secondary }}
+              >
+                <div className="text-center">
+                  <p className="text-white text-[8px] font-bold leading-none">{initials}</p>
+                  <p className="text-[10px]" style={{ color: colors.secondary }}>★</p>
+                </div>
+              </div>
+              <div>
+                <h3 className="font-bold text-sm leading-tight" style={{ color: colors.primary }}>
+                  {hotel.name.toUpperCase()}
+                </h3>
+                <div className="text-xs mt-0.5" style={{ color: colors.secondary }}>
+                  {'★'.repeat(hotel.starRating)}{'☆'.repeat(5 - hotel.starRating)}
+                </div>
+                <p className="text-[10px] text-slate-500 mt-0.5 leading-snug">{hotel.address}</p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Title */}
         <div className="text-center mb-3 mt-2">
@@ -609,17 +723,15 @@ function VoucherPreview({ hotel, guests, checkInDate, checkOutDate, boardBasis }
           </div>
         </div>
 
-        {/* Summary Box */}
-        <div className="bg-slate-50 border border-slate-100 rounded-lg p-2.5 mb-3 flex items-center justify-between">
+        {/* Summary Box with subtle PAID indicator */}
+        <div className="bg-slate-50 border border-slate-100 rounded-lg p-2.5 mb-3 flex items-center justify-between relative overflow-hidden">
           <div>
             <p className="text-[10px] font-semibold" style={{ color: colors.primary }}>BOOKING SUMMARY</p>
             <p className="text-[9px] text-slate-500 mt-0.5">
               {guests.length} Guests | {roomCount} Rooms | {nights} Night(s) | {boardBasis}
             </p>
           </div>
-          <div className="px-2.5 py-1 rounded text-white text-[9px] font-bold bg-emerald-600">
-            PAID
-          </div>
+          <p className="text-[9px] text-emerald-600 italic font-medium">Payment Received</p>
         </div>
 
         {/* Non-refundable Banner */}
