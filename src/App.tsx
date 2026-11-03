@@ -78,6 +78,7 @@ function App() {
 
   const handleGeneratePDF = useCallback(() => {
     if (!selectedHotel || parsedGuests.length === 0 || !checkInDate || !checkOutDate) {
+      alert('Please fill in all required fields: Hotel, Guest Names, Check-In Date, and Check-Out Date');
       return;
     }
 
@@ -90,23 +91,31 @@ function App() {
       let currentBatch = 0;
       
       const processBatch = () => {
-        const start = currentBatch * batchSize;
-        const end = Math.min(start + batchSize, parsedGuests.length);
-        const batchGuests = parsedGuests.slice(start, end);
-        
-        const doc = generateVoucherPDF(selectedHotel, batchGuests, checkInDate, checkOutDate, boardBasis);
-        const batchNum = currentBatch + 1;
-        const fileName = `${selectedHotel.name.replace(/[^a-zA-Z0-9]/g, '_')}_Voucher_Part${batchNum}.pdf`;
-        doc.save(fileName);
-        
-        currentBatch++;
-        
-        if (currentBatch < totalBatches) {
-          setTimeout(processBatch, 150);
-        } else {
+        try {
+          const start = currentBatch * batchSize;
+          const end = Math.min(start + batchSize, parsedGuests.length);
+          const batchGuests = parsedGuests.slice(start, end);
+          
+          const doc = generateVoucherPDF(selectedHotel, batchGuests, checkInDate, checkOutDate, boardBasis);
+          const batchNum = currentBatch + 1;
+          const fileName = `${selectedHotel.name.replace(/[^a-zA-Z0-9]/g, '_')}_Voucher_Part${batchNum}.pdf`;
+          
+          // Use doc.save() for reliable download
+          doc.save(fileName);
+          
+          currentBatch++;
+          
+          if (currentBatch < totalBatches) {
+            setTimeout(processBatch, 200);
+          } else {
+            setIsGenerating(false);
+            setSuccessMessage(`Successfully downloaded ${totalBatches} voucher PDF(s) for ${parsedGuests.length} guests!`);
+            setTimeout(() => setSuccessMessage(''), 5000);
+          }
+        } catch (batchError) {
+          console.error('Error in batch:', batchError);
           setIsGenerating(false);
-          setSuccessMessage(`Successfully generated ${totalBatches} voucher PDF(s) for ${parsedGuests.length} guests!`);
-          setTimeout(() => setSuccessMessage(''), 5000);
+          alert('Error generating PDF. Please check the console for details.');
         }
       };
       
@@ -114,6 +123,37 @@ function App() {
     } catch (error) {
       console.error('Error generating PDF:', error);
       setIsGenerating(false);
+      alert('Error generating PDF. Please check the console for details.');
+    }
+  }, [selectedHotel, parsedGuests, checkInDate, checkOutDate, boardBasis]);
+
+  const handlePrint = useCallback(() => {
+    if (!selectedHotel || parsedGuests.length === 0 || !checkInDate || !checkOutDate) {
+      alert('Please fill in all required fields before printing');
+      return;
+    }
+
+    try {
+      const doc = generateVoucherPDF(selectedHotel, parsedGuests, checkInDate, checkOutDate, boardBasis);
+      
+      // Open PDF in new window for printing
+      const pdfData = doc.output('bloburl');
+      const printWindow = window.open(pdfData, '_blank');
+      
+      if (printWindow) {
+        // Wait for the PDF to load then print
+        setTimeout(() => {
+          printWindow.print();
+        }, 1000);
+      } else {
+        // Fallback: download the PDF
+        const fileName = `${selectedHotel.name.replace(/[^a-zA-Z0-9]/g, '_')}_Voucher.pdf`;
+        doc.save(fileName);
+        alert('Print window was blocked by your browser. PDF has been downloaded instead. Please allow pop-ups for this site to enable printing.');
+      }
+    } catch (error) {
+      console.error('Error printing PDF:', error);
+      alert('Error printing PDF. Please try downloading instead.');
     }
   }, [selectedHotel, parsedGuests, checkInDate, checkOutDate, boardBasis]);
 
@@ -321,29 +361,7 @@ function App() {
 
             {/* Action Buttons */}
             <div className="space-y-2">
-              <button 
-                onClick={handleGeneratePDF}
-                disabled={!selectedHotel || parsedGuests.length === 0 || !checkInDate || !checkOutDate || isGenerating}
-                className="w-full py-3 bg-slate-800 text-white font-semibold rounded-xl shadow-lg shadow-slate-800/20 hover:bg-slate-900 hover:shadow-slate-800/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 text-sm"
-              >
-                {isGenerating ? (
-                  <>
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Generating PDF...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                    </svg>
-                    Generate PDF Voucher
-                  </>
-                )}
-              </button>
-              
+              {/* Download Button */}
               <button 
                 onClick={handleGeneratePDF}
                 disabled={!selectedHotel || parsedGuests.length === 0 || !checkInDate || !checkOutDate || isGenerating}
@@ -362,9 +380,21 @@ function App() {
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                     </svg>
-                    Direct Download
+                    Download PDF Voucher
                   </>
                 )}
+              </button>
+
+              {/* Print Button */}
+              <button 
+                onClick={handlePrint}
+                disabled={!selectedHotel || parsedGuests.length === 0 || !checkInDate || !checkOutDate || isGenerating}
+                className="w-full py-3 bg-blue-600 text-white font-semibold rounded-xl shadow-lg shadow-blue-600/20 hover:bg-blue-700 hover:shadow-blue-600/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 text-sm"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                </svg>
+                Print Voucher
               </button>
             </div>
           </div>
